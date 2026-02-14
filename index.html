@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VPS剩余价值计算器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#64748b',
+                        accent: '#10b981',
+                        profit: '#16a34a',
+                        loss: '#dc2626',
+                    },
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); }
+            .input-focus { @apply focus:outline-none; }
+            .input-sm { @apply py-1.5 px-3 text-sm; }
+            .result-number { @apply text-xl font-bold; }
+            .no-spin::-webkit-outer-spin-button,
+            .no-spin::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+            .no-spin { -moz-appearance: textfield; }
+            /* 修复autofill输入框变黑的核心样式 */
+            .autofill-fix:-webkit-autofill,
+            .autofill-fix:-webkit-autofill:hover,
+            .autofill-fix:-webkit-autofill:focus {
+                -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+                box-shadow: 0 0 0px 1000px white inset !important;
+                -webkit-text-fill-color: #111827 !important;
+                border-color: #d1d5db !important;
+                background-color: white !important;
+                transition: background-color 5000s ease-in-out 0s;
+            }
+            .date-no-input { position: relative; }
+            .date-no-input::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 30px;
+                bottom: 0;
+                pointer-events: none;
+            }
+            .date-no-input::-webkit-calendar-picker-indicator,
+            .date-no-input::-moz-calendar-picker-indicator {
+                cursor: pointer;
+                position: relative;
+                z-index: 10;
+            }
+            .price-currency-group { @apply flex items-stretch w-full; }
+            .price-input { @apply flex-1 rounded-r-none border-r-0; }
+            .currency-select { @apply rounded-l-none border-l-0 py-1.5 px-2 text-sm; min-width: 90px; }
+            /* 优化背景性能：移除fixed，改用min-height+cover */
+            .bg-bing {
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                min-height: 100vh;
+                /* 移除background-attachment: fixed，解决滚动卡顿 */
+            }
+            .bg-overlay {
+                background-color: rgba(255, 255, 255, 0.85);
+                min-height: 100vh;
+                @apply md:bg-white/80;
+            }
+            /* 清除按钮样式 - 文字版+红色 */
+            .clear-btn {
+                @apply absolute top-2 right-2 px-3 py-1.5 rounded-lg hover:bg-primary/10 text-red-600 font-medium transition-colors cursor-pointer text-sm flex items-center gap-1;
+            }
+            .clear-btn.active {
+                @apply bg-red-100 text-red-700;
+            }
+        }
+    </style>
+</head>
+<body class="font-sans bg-bing" id="body-with-bg">
+    <div class="bg-overlay">
+        <div class="container mx-auto px-4 py-8 max-w-3xl">
+            <div class="text-center mb-6">
+                <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-gray-800 mb-1">VPS剩余价值计算器</h1>
+                <p class="text-gray-600 text-sm">精准计算你的VPS剩余使用时间和价值，评估出让收益</p>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="bg-white rounded-xl p-4 card-shadow mb-6 backdrop-blur-sm bg-white/90 relative">
+                <div id="clear-all-btn" class="clear-btn">
+                    <i class="fas fa-trash-alt"></i>
+                    <span>清空所有</span>
+                </div>
+
+                <div id="rate-status" class="mb-3 text-sm text-gray-500">
+                    <i class="fas fa-circle-notch fa-spin mr-2"></i>正在获取实时汇率...
+                </div>
+                <form id="vps-calculator-form" class="space-y-3">
+                    <div>
+                        <label for="vps-name" class="block text-sm font-medium text-gray-700 mb-1">VPS名称 (可选)</label>
+                        <input type="text" id="vps-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg input-focus autofill-fix text-sm" placeholder="例如: 阿里云ECS-新加坡" autocomplete="off">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <label for="purchase-amount" class="block text-sm font-medium text-gray-700 mb-1">购买价格/续费价格</label>
+                            <div class="price-currency-group">
+                                <input type="number" id="purchase-amount" min="0" step="0.01" required
+                                       class="no-spin price-input input-sm border border-gray-300 rounded-lg input-focus text-sm" placeholder="例如: 100.00">
+                                <select id="original-currency" class="currency-select border border-gray-300 rounded-lg text-gray-600 input-focus">
+                                    <option value="USD">美元 USD</option>
+                                    <option value="CNY">人民币 CNY</option>
+                                    <option value="EUR">欧元 EUR</option>
+                                    <option value="GBP">英镑 GBP</option>
+                                    <option value="JPY">日元 JPY</option>
+                                    <option value="HKD">港币 HKD</option>
+                                    <option value="SGD">新加坡元 SGD</option>
+                                    <option value="KRW">韩元 KRW</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="transfer-amount" class="block text-sm font-medium text-gray-700 mb-1">出让价格 (选填)</label>
+                            <div class="price-currency-group">
+                                <input type="number" id="transfer-amount" min="0" step="0.01"
+                                       class="no-spin price-input input-sm border border-gray-300 rounded-lg input-focus text-sm" placeholder="例如: 800.00">
+                                <select id="target-currency" class="currency-select border border-gray-300 rounded-lg text-gray-600 input-focus">
+                                    <option value="CNY">人民币 CNY</option>
+                                    <option value="USD">美元 USD</option>
+                                    <option value="EUR">欧元 EUR</option>
+                                    <option value="GBP">英镑 GBP</option>
+                                    <option value="JPY">日元 JPY</option>
+                                    <option value="HKD">港币 HKD</option>
+                                    <option value="SGD">新加坡元 SGD</option>
+                                    <option value="KRW">韩元 KRW</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">续费周期</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            <label class="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition text-sm">
+                                <input type="radio" name="billing-cycle" value="monthly" class="mr-1"> <span>月付</span>
+                            </label>
+                            <label class="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition text-sm">
+                                <input type="radio" name="billing-cycle" value="yearly" class="mr-1" checked> <span>年付</span>
+                            </label>
+                            <label class="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition text-sm">
+                                <input type="radio" name="billing-cycle" value="quarterly" class="mr-1"> <span>季付</span>
+                            </label>
+                            <label class="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition text-sm">
+                                <input type="radio" name="billing-cycle" value="biannually" class="mr-1"> <span>半年付</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <label for="purchase-date" class="block text-sm font-medium text-gray-700 mb-1">购买日期</label>
+                            <input type="date" id="purchase-date" required 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg input-focus text-sm date-no-input">
+                        </div>
+                        <div>
+                            <label for="expiry-date" class="block text-sm font-medium text-gray-700 mb-1">到期日期 <span class="text-gray-400 text-xs">(自动计算)</span></label>
+                            <input type="date" id="expiry-date" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 text-sm input-focus">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-2 px-4 rounded-lg transition flex items-center justify-center text-sm">
+                        <i class="fas fa-calculator mr-2"></i>计算剩余价值
+                    </button>
+                </form>
+            </div>
+
+            <div id="result-section" class="bg-white rounded-xl p-4 card-shadow hidden backdrop-blur-sm bg-white/90">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-semibold text-gray-800">计算结果</h2>
+                    <button id="copy-md-btn" class="px-3 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 flex items-center">
+                        <i class="fas fa-copy mr-1"></i><span>复制MD表格</span>
+                    </button>
+                </div>
+
+                <div id="vps-name-result" class="mb-3 text-2xl font-bold text-gray-700 text-center hidden"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1 flex items-center">
+                            <i class="fas fa-wallet mr-2 text-primary"></i>购买价格/续费价格
+                        </p>
+                        <p id="purchase-price" class="result-number text-primary">--</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1 flex items-center">
+                            <i class="fas fa-calendar mr-2 text-primary"></i>起止时间
+                        </p>
+                        <p id="usage-cycle" class="result-number text-primary whitespace-nowrap">--</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">剩余时间</p>
+                        <p id="remaining-time" class="result-number text-primary">--</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">剩余价值</p>
+                        <p id="remaining-value-target" class="result-number text-accent">--</p>
+                    </div>
+                </div>
+
+                <div id="transfer-section" class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 hidden">
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">出让价格</p>
+                        <p id="transfer-price" class="result-number text-primary">--</p>
+                    </div>
+                    <div class="p-3 bg-gray-50 rounded-lg">
+                        <p class="text-sm text-gray-500 mb-1">溢价/亏损</p>
+                        <p id="profit-loss" class="result-number">--</p>
+                    </div>
+                </div>
+
+                <div class="text-sm text-gray-500 pt-2 border-t border-gray-100 text-center">
+                    <p>实时汇率: 1 <span id="rate-from">USD</span> = <span id="rate-value">--</span> <span id="rate-to">CNY</span> (更新时间: <span id="rate-update-time">--</span>)</p>
+                    <p class="mt-1">计算生成时间: <span id="calculate-time">--</span></p>
+                </div>
+            </div>
+
+            <!-- GitHub链接 -->
+            <div class="mt-8 text-center text-sm text-gray-600">
+                <p>
+                    <i class="fab fa-github mr-1"></i>
+                    源码仓库：<a href="https://github.com/sunqin0310/vps-count" target="_blank" class="text-primary hover:underline">github.com/sunqin0310/vps-count</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let exchangeRates = {};
+        let rateUpdateTime = '';
+        const API_CONFIG = { key: 'fae144f2da690f6bca1c6fc6424bb046', id: '10005705', baseUrl: 'https://cn.apihz.cn/api/jinrong/huilv.php' };
+        const BING_BG = {
+            pc: 'https://bing.img.run/rand_uhd.php',
+            mobile: 'https://bing.img.run/rand_m.php'
+        };
+        const MOBILE_BREAKPOINT = 768;
+        let currentBgUrl = '';
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadResponsiveBingBg();
+            window.addEventListener('resize', debounce(loadResponsiveBingBg, 500));
+
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('purchase-date').value = today;
+            fetchExchangeRates();
+            calculateExpiryDate();
+
+            const purchaseDateInput = document.getElementById('purchase-date');
+            purchaseDateInput.addEventListener('keydown', e => e.preventDefault());
+            purchaseDateInput.addEventListener('paste', e => e.preventDefault());
+            purchaseDateInput.addEventListener('input', e => e.preventDefault());
+
+            const priceInputs = document.querySelectorAll('input[type="number"].price-input');
+            priceInputs.forEach(input => {
+                input.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    this.blur(); this.focus();
+                }, { passive: false });
+            });
+
+            document.getElementById('purchase-date').addEventListener('change', calculateExpiryDate);
+            document.querySelectorAll('input[name="billing-cycle"]').forEach(radio => {
+                radio.addEventListener('change', calculateExpiryDate);
+            });
+            document.getElementById('original-currency').addEventListener('change', fetchExchangeRates);
+            document.getElementById('target-currency').addEventListener('change', fetchExchangeRates);
+            document.getElementById('vps-calculator-form').addEventListener('submit', e => {
+                e.preventDefault();
+                calculateVPSValue();
+            });
+
+            document.getElementById('copy-md-btn').addEventListener('click', copyResultAsMarkdownTable);
+            document.getElementById('clear-all-btn').addEventListener('click', clearAllContent);
+        });
+
+        // 一键清除所有内容
+        function clearAllContent() {
+            // 清空输入框
+            document.getElementById('vps-name').value = '';
+            document.getElementById('purchase-amount').value = '';
+            document.getElementById('transfer-amount').value = '';
+            
+            // 重置日期
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('purchase-date').value = today;
+            calculateExpiryDate();
+            
+            // 重置续费周期和货币
+            document.querySelector('input[name="billing-cycle"][value="yearly"]').checked = true;
+            document.getElementById('original-currency').value = 'USD';
+            document.getElementById('target-currency').value = 'CNY';
+            
+            // 清空结果
+            document.getElementById('vps-name-result').classList.add('hidden');
+            document.getElementById('purchase-price').textContent = '--';
+            document.getElementById('usage-cycle').textContent = '--';
+            document.getElementById('remaining-time').textContent = '--';
+            document.getElementById('remaining-value-target').textContent = '--';
+            document.getElementById('transfer-price').textContent = '--';
+            document.getElementById('profit-loss').textContent = '--';
+            document.getElementById('profit-loss').className = 'result-number';
+            document.getElementById('rate-from').textContent = 'USD';
+            document.getElementById('rate-to').textContent = 'CNY';
+            document.getElementById('rate-value').textContent = '--';
+            document.getElementById('rate-update-time').textContent = '--';
+            document.getElementById('calculate-time').textContent = '--';
+            
+            // 隐藏结果区域
+            document.getElementById('result-section').classList.add('hidden');
+            document.getElementById('transfer-section').classList.add('hidden');
+            
+            // 重新获取汇率
+            fetchExchangeRates();
+            
+            // 视觉反馈
+            const clearBtn = document.getElementById('clear-all-btn');
+            clearBtn.classList.add('active');
+            setTimeout(() => {
+                clearBtn.classList.remove('active');
+            }, 500);
+            
+            // 聚焦输入框
+            document.getElementById('vps-name').focus();
+        }
+
+        // 防抖函数
+        function debounce(fn, delay) {
+            let timer;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn(...args), delay);
+            };
+        }
+
+        // 加载背景图（优化性能）
+        function loadResponsiveBingBg() {
+            const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+            const targetBgUrl = isMobile ? BING_BG.mobile : BING_BG.pc;
+            if (targetBgUrl === currentBgUrl) return;
+            currentBgUrl = targetBgUrl;
+            const img = new Image();
+            img.src = targetBgUrl;
+            img.onload = () => {
+                document.getElementById('body-with-bg').style.backgroundImage = `url(${targetBgUrl})`;
+            };
+            img.onerror = () => {
+                document.getElementById('body-with-bg').style.background = '#f9fafb';
+            };
+        }
+
+        // 格式化日期时间
+        function formatDateTime(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth()+1).padStart(2,'0');
+            const d = String(date.getDate()).padStart(2,'0');
+            const h = String(date.getHours()).padStart(2,'0');
+            const i = String(date.getMinutes()).padStart(2,'0');
+            const s = String(date.getSeconds()).padStart(2,'0');
+            return `${y}/${m}/${d} ${h}:${i}:${s}`;
+        }
+
+        // 获取汇率
+        async function fetchExchangeRates() {
+            const from = document.getElementById('original-currency').value;
+            const to = document.getElementById('target-currency').value;
+            try {
+                const res = await fetch(`${API_CONFIG.baseUrl}?id=${API_CONFIG.id}&key=${API_CONFIG.key}&from=${from}&to=${to}&money=1`);
+                const data = await res.json();
+                if (data.code !== 200) throw new Error('API error');
+                exchangeRates[from] = exchangeRates[from] || {};
+                exchangeRates[from][to] = parseFloat(data.rate);
+                rateUpdateTime = data.uptime || new Date().toLocaleString();
+                document.getElementById('rate-status').innerHTML = `<i class="fas fa-check-circle mr-2 text-green-500"></i>实时汇率已更新 (1 ${from} = ${data.rate} ${to})`;
+            } catch (e) {
+                console.error(e);
+                // 默认汇率
+                exchangeRates = {
+                    USD: { USD:1, CNY:7.2, EUR:0.92, GBP:0.78, JPY:148, HKD:7.8, SGD:1.34, KRW:1320 },
+                    CNY: { USD:0.139, CNY:1, EUR:0.128, GBP:0.108, JPY:20.56, HKD:1.08, SGD:0.186, KRW:183.33 },
+                    EUR: { USD:1.087, CNY:7.83, EUR:1, GBP:0.848, JPY:160.87, HKD:8.48, SGD:1.457, KRW:1434.78 },
+                    GBP: { USD:1.282, CNY:9.23, EUR:1.179, GBP:1, JPY:189.74, HKD:9.97, SGD:1.718, KRW:1692.31 },
+                    JPY: { USD:0.00676, CNY:0.0486, EUR:0.00622, GBP:0.00527, JPY:1, HKD:0.0527, SGD:0.00905, KRW:8.92 },
+                    HKD: { USD:0.128, CNY:0.926, EUR:0.118, GBP:0.100, HKD:1, JPY:18.98, SGD:0.172, KRW:169.23 },
+                    SGD: { USD:0.746, CNY:5.38, EUR:0.686, GBP:0.582, JPY:110.5, HKD:5.81, SGD:1, KRW:985.07 },
+                    KRW: { USD:0.000758, CNY:0.00546, EUR:0.000697, GBP:0.00591, JPY:0.112, HKD:0.00591, SGD:0.00102, KRW:1 }
+                };
+                rateUpdateTime = '默认值';
+                document.getElementById('rate-status').innerHTML = '<i class="fas fa-exclamation-circle mr-2 text-red-500"></i>获取汇率失败，使用默认汇率';
+            }
+            calculateExpiryDate();
+        }
+
+        // 计算到期日期
+        function calculateExpiryDate() {
+            const p = document.getElementById('purchase-date').value;
+            if (!p) return;
+            const d = new Date(p);
+            const cycle = document.querySelector('input[name="billing-cycle"]:checked').value;
+            switch(cycle){
+                case 'monthly': d.setMonth(d.getMonth()+1); break;
+                case 'quarterly': d.setMonth(d.getMonth()+3); break;
+                case 'biannually': d.setMonth(d.getMonth()+6); break;
+                case 'yearly': d.setFullYear(d.getFullYear()+1); break;
+            }
+            document.getElementById('expiry-date').value = d.toISOString().split('T')[0];
+        }
+
+        // 格式化日期
+        function formatDate(s){
+            if(!s) return '--';
+            const d = new Date(s);
+            const y = d.getFullYear();
+            const m = String(d.getMonth()+1).padStart(2,'0');
+            const d_ = String(d.getDate()).padStart(2,'0');
+            return `${y}/${m}/${d_}`;
+        }
+
+        // 格式化货币
+        function formatCurrency(amt,cur){
+            const sym = { USD:'$', CNY:'¥', EUR:'€', GBP:'£', JPY:'¥', HKD:'HK$', SGD:'S$', KRW:'₩' };
+            return `${sym[cur]||cur} ${amt.toFixed((cur==='JPY'||cur==='KRW')?0:2)}`;
+        }
+
+        // 获取周期文本
+        function getCycleText(){
+            const v = document.querySelector('input[name="billing-cycle"]:checked').value;
+            const map = {monthly:'月付', quarterly:'季付', biannually:'半年付', yearly:'年付'};
+            return map[v]||v;
+        }
+
+        // 格式化时长（天数）
+        function formatDurationAsIntegerDays(dur){
+            if(dur<=0) return '0 天';
+            return `${Math.floor(dur/(1000*60*60*24))} 天`;
+        }
+
+        // 核心计算函数（优化滚动）
+        function calculateVPSValue(){
+            const vpsName = document.getElementById('vps-name').value.trim();
+            const oriCur = document.getElementById('original-currency').value;
+            const tarCur = document.getElementById('target-currency').value;
+            const purchaseAmt = parseFloat(document.getElementById('purchase-amount').value);
+            const transferAmt = parseFloat(document.getElementById('transfer-amount').value)||0;
+            const pDate = document.getElementById('purchase-date').value;
+            const eDate = document.getElementById('expiry-date').value;
+
+            if(isNaN(purchaseAmt) || purchaseAmt<=0){
+                alert('请输入有效购买金额');
+                return;
+            }
+
+            const now = new Date();
+            const p = new Date(pDate);
+            const e = new Date(eDate);
+            const total = e - p;
+            const remain = Math.max(e-now,0);
+            const ratio = total>0 ? remain/total : 0;
+            const remainVal = purchaseAmt * ratio;
+            const rate = exchangeRates[oriCur][tarCur];
+            const remainValTar = remainVal * rate;
+
+            // 填充计算结果
+            document.getElementById('purchase-price').textContent = `${formatCurrency(purchaseAmt,oriCur)}（${getCycleText()}）`;
+            document.getElementById('usage-cycle').textContent = `${formatDate(pDate)} - ${formatDate(eDate)}`;
+            document.getElementById('remaining-time').textContent = formatDurationAsIntegerDays(remain);
+            document.getElementById('remaining-value-target').textContent = formatCurrency(remainValTar,tarCur);
+
+            // VPS名称显示
+            const vpsEl = document.getElementById('vps-name-result');
+            if(vpsName){
+                vpsEl.textContent = `📌 ${vpsName}`;
+                vpsEl.classList.remove('hidden');
+            }else{
+                vpsEl.classList.add('hidden');
+            }
+
+            // 转让价格相关
+            const transferSection = document.getElementById('transfer-section');
+            if(transferAmt>0){
+                document.getElementById('transfer-price').textContent = formatCurrency(transferAmt,tarCur);
+                const diff = transferAmt - remainValTar;
+                const diffStr = formatCurrency(Math.abs(diff),tarCur);
+                const profitCls = diff>0 ? 'text-profit' : diff<0 ? 'text-loss' : 'text-secondary';
+                const profitTxt = diff>0 ? `+${diffStr}（溢价）` : diff<0 ? `-${diffStr}（亏损）` : `${diffStr}（持平）`;
+                const plEl = document.getElementById('profit-loss');
+                plEl.textContent = profitTxt;
+                plEl.className = `result-number ${profitCls}`;
+                transferSection.classList.remove('hidden');
+            }else{
+                transferSection.classList.add('hidden');
+            }
+
+            // 汇率信息
+            document.getElementById('rate-from').textContent = oriCur;
+            document.getElementById('rate-to').textContent = tarCur;
+            document.getElementById('rate-value').textContent = rate.toFixed(4);
+            document.getElementById('rate-update-time').textContent = rateUpdateTime;
+            document.getElementById('calculate-time').textContent = formatDateTime(new Date());
+
+            // 显示结果区域（关键优化：移除平滑滚动，改用普通定位）
+            document.getElementById('result-section').classList.remove('hidden');
+            // 替换卡顿的 smooth scroll 为普通定位
+            const resultSection = document.getElementById('result-section');
+            const rect = resultSection.getBoundingClientRect();
+            window.scrollTo({
+                top: window.scrollY + rect.top - 20, // 保留20px间距
+                behavior: 'auto' // 禁用平滑滚动，解决卡顿
+            });
+        }
+
+        // 复制MD表格
+        function copyResultAsMarkdownTable() {
+            const vpsName = document.getElementById('vps-name').value.trim() || 'VPS 剩余价值信息';
+            const purchasePrice = document.getElementById('purchase-price').textContent;
+            const usageCycle = document.getElementById('usage-cycle').textContent;
+            const remainTime = document.getElementById('remaining-time').textContent;
+            const remainValue = document.getElementById('remaining-value-target').textContent;
+
+            const hasTransfer = !document.getElementById('transfer-section').classList.contains('hidden');
+            const transferPrice = hasTransfer ? document.getElementById('transfer-price').textContent : '';
+            const profitLoss = hasTransfer ? document.getElementById('profit-loss').textContent : '';
+
+            const rateFrom = document.getElementById('rate-from').textContent;
+            const rateTo = document.getElementById('rate-to').textContent;
+            const rateValue = document.getElementById('rate-value').textContent;
+            const rateUpdateTime = document.getElementById('rate-update-time').textContent;
+            const calculateTime = document.getElementById('calculate-time').textContent;
+
+            let md = `| 📌 | **${vpsName}** |\n`;
+            md += `|----|----------|\n`;
+            md += `| 购买/续费价格 | ${purchasePrice} |\n`;
+            md += `| 起止时间 | ${usageCycle} |\n`;
+            md += `| 剩余时间 | ${remainTime} |\n`;
+            md += `| 剩余价值 | **${remainValue}** |\n`;
+
+            if (hasTransfer) {
+                md += `| 出让价格 | ${transferPrice} |\n`;
+                md += `| 溢价/亏损 | **${profitLoss}** |\n`;
+            }
+
+            md += `| 实时汇率 | 1 ${rateFrom} = ${rateValue} ${rateTo} |\n`;
+            md += `| 汇率更新 | ${rateUpdateTime} |\n`;
+            md += `| 计算时间 | ${calculateTime} |\n\n`;
+            md += `> 由 [VPS剩余价值计算器](https://vps.007677.xyz) 生成`;
+
+            navigator.clipboard.writeText(md).then(() => {
+                const btn = document.getElementById('copy-md-btn');
+                const old = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>已复制';
+                setTimeout(() => btn.innerHTML = old, 1500);
+            }).catch(() => {
+                alert('复制失败，请手动复制');
+            });
+        }
+    </script>
+</body>
+</html>
