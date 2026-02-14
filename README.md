@@ -22,7 +22,7 @@
 ## 一键部署（Cloudflare Pages）
 点击下方按钮，快速将项目部署到你的 Cloudflare Pages（需登录 Cloudflare 账号）：
 
-[![Deploy to Cloudflare Pages](https://camo.githubusercontent.com/5f09276816885000f1f94c081884991792fdbc89822991c51f779d424996d19c8/68747470733a2f2f6465706c6f792e636c6f7564666c6172652e636f6d2f627574746f6e3f70726f6a6563743d7061676573)](https://deploy.cloudflarepages.com/?url=https://github.com/sunqin0310/vps-count)
+[![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.cloudflarepages.com/?url=https://github.com/sunqin0310/vps-count)
 
 ## 本地使用
 1. 克隆仓库：
