@@ -19,15 +19,12 @@
 #### Markdown 复制结果
 ![MD语法结果示例](https://raw.githubusercontent.com/sunqin0310/vps-count/main/copy.png)
 
-## 一键部署（Cloudflare Pages）
-点击下方按钮，快速将项目部署到你的 Cloudflare Pages（需登录 Cloudflare 账号）：
+## 部署教程（Cloudflare Pages）
+1. 将本仓库 Fork 到你的 GitHub 账号下
+2. 登录 Cloudflare 控制台，进入 Pages 模块，选择「连接到 Git」
+3. 选择已 Fork 的 `vps-count` 仓库，直接完成部署（默认配置无需修改）
 
-[![Deploy to Cloudflare Pages](https://deploy.workers.cloudflare.com/button)](https://deploy.cloudflarepages.com/?url=https://github.com/sunqin0310/vps-count)
-
-## 本地使用
-1. 克隆仓库：
-```bash
-git clone https://github.com/sunqin0310/vps-count.git
-cd vps-count
-```
-2. 直接打开 index.html 文件即可使用（无需额外依赖，纯前端静态项目）
+## 本地使用（无需部署/无需Git）
+1. 打开本仓库主页，点击「Code」→「Download ZIP」下载完整源码包
+2. 解压下载的 ZIP 文件
+3. 双击解压后的 `index.html` 文件，直接在浏览器中打开即可使用
