@@ -96,9 +96,10 @@
 
             <!-- 输入区域 -->
             <div class="bg-white rounded-xl p-4 card-shadow mb-6 backdrop-blur-sm bg-white/90 relative">
+                <!-- 修复：清空按钮文字改为"清空" -->
                 <div id="clear-all-btn" class="clear-btn">
                     <i class="fas fa-trash-alt"></i>
-                    <span>清空所有</span>
+                    <span>清空</span>
                 </div>
 
                 <div id="rate-status" class="mb-3 text-sm text-gray-500">
@@ -486,7 +487,7 @@
             document.getElementById('remaining-time').textContent = formatDurationAsIntegerDays(remain);
             document.getElementById('remaining-value-target').textContent = formatCurrency(remainValTar,tarCur);
 
-            // VPS名称显示
+            // VPS名称显示 - 恢复📌符号
             const vpsEl = document.getElementById('vps-name-result');
             if(vpsName){
                 vpsEl.textContent = `📌 ${vpsName}`;
@@ -529,7 +530,7 @@
             });
         }
 
-        // 复制MD表格
+        // 复制MD表格（优化手机端论坛兼容性，保留📌符号）
         function copyResultAsMarkdownTable() {
             const vpsName = document.getElementById('vps-name').value.trim() || 'VPS 剩余价值信息';
             const purchasePrice = document.getElementById('purchase-price').textContent;
@@ -547,22 +548,40 @@
             const rateUpdateTime = document.getElementById('rate-update-time').textContent;
             const calculateTime = document.getElementById('calculate-time').textContent;
 
-            let md = `| 📌 | **${vpsName}** |\n`;
+            // 优化：使用更兼容论坛的Markdown表格格式，保留📌符号
+            let md = `| 📌 | **${vpsName.replace(/\|/g, '&#124;')}** |\n`;
             md += `|----|----------|\n`;
-            md += `| 购买/续费价格 | ${purchasePrice} |\n`;
-            md += `| 起止时间 | ${usageCycle} |\n`;
-            md += `| 剩余时间 | ${remainTime} |\n`;
-            md += `| 剩余价值 | **${remainValue}** |\n`;
+            md += `| 购买/续费价格 | ${purchasePrice.replace(/\|/g, '&#124;')} |\n`;
+            md += `| 起止时间 | ${usageCycle.replace(/\|/g, '&#124;')} |\n`;
+            md += `| 剩余时间 | ${remainTime.replace(/\|/g, '&#124;')} |\n`;
+            md += `| 剩余价值 | **${remainValue.replace(/\|/g, '&#124;')}** |\n`;
 
             if (hasTransfer) {
-                md += `| 出让价格 | ${transferPrice} |\n`;
-                md += `| 溢价/亏损 | **${profitLoss}** |\n`;
+                md += `| 出让价格 | ${transferPrice.replace(/\|/g, '&#124;')} |\n`;
+                md += `| 溢价/亏损 | **${profitLoss.replace(/\|/g, '&#124;')}** |\n`;
             }
 
             md += `| 实时汇率 | 1 ${rateFrom} = ${rateValue} ${rateTo} |\n`;
-            md += `| 汇率更新 | ${rateUpdateTime} |\n`;
-            md += `| 计算时间 | ${calculateTime} |\n\n`;
+            md += `| 汇率更新 | ${rateUpdateTime.replace(/\|/g, '&#124;')} |\n`;
+            md += `| 计算时间 | ${calculateTime.replace(/\|/g, '&#124;')} |\n\n`;
             md += `> 由 [VPS剩余价值计算器](https://vps.007677.xyz) 生成`;
+
+            // 修复：兼容手机端剪贴板
+            if (!navigator.clipboard) {
+                // 降级方案：创建文本区域手动复制
+                const textArea = document.createElement('textarea');
+                textArea.value = md;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                const btn = document.getElementById('copy-md-btn');
+                const old = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>已复制';
+                setTimeout(() => btn.innerHTML = old, 1500);
+                return;
+            }
 
             navigator.clipboard.writeText(md).then(() => {
                 const btn = document.getElementById('copy-md-btn');
@@ -570,7 +589,18 @@
                 btn.innerHTML = '<i class="fas fa-check mr-1"></i>已复制';
                 setTimeout(() => btn.innerHTML = old, 1500);
             }).catch(() => {
-                alert('复制失败，请手动复制');
+                // 降级复制方案
+                const textArea = document.createElement('textarea');
+                textArea.value = md;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                const btn = document.getElementById('copy-md-btn');
+                const old = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1"></i>已复制';
+                setTimeout(() => btn.innerHTML = old, 1500);
             });
         }
     </script>
