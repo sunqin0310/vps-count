@@ -101,24 +101,25 @@
                     <span>清空</span>
                 </div>
 
-                <div id="rate-status" class="mb-3 text-sm text-gray-500">
+                <div id="rate-status" class="mb-1 text-sm text-gray-500">
                     <i class="fas fa-circle-notch fa-spin mr-2"></i>正在获取实时汇率...
                 </div>
+                <p class="text-xs text-gray-400 mb-3"><span class="text-red-500">*</span> 必填项</p>
                 <form id="vps-calculator-form" class="space-y-3">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div>
-                            <label for="vps-name" class="block text-sm font-medium text-gray-700 mb-1">VPS名称 (可选)</label>
+                            <label for="vps-name" class="block text-sm font-medium text-gray-700 mb-1">VPS名称</label>
                             <input type="text" id="vps-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg input-focus autofill-fix text-sm" placeholder="例如: 阿里云ECS-新加坡" autocomplete="off">
                         </div>
                         <div>
-                            <label for="nq-link" class="block text-sm font-medium text-gray-700 mb-1">NQ链接 (可选)</label>
+                            <label for="nq-link" class="block text-sm font-medium text-gray-700 mb-1">NQ链接</label>
                             <input type="url" id="nq-link" class="w-full px-3 py-2 border border-gray-300 rounded-lg input-focus autofill-fix text-sm" placeholder="例如: https://nodequality.com/" autocomplete="off">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div>
-                            <label for="purchase-amount" class="block text-sm font-medium text-gray-700 mb-1">购买价格/续费价格</label>
+                            <label for="purchase-amount" class="block text-sm font-medium text-gray-700 mb-1">购买价格/续费价格 <span class="text-red-500">*</span></label>
                             <div class="price-currency-group">
                                 <input type="number" id="purchase-amount" min="0" step="0.01" required
                                        class="no-spin price-input input-sm border border-gray-300 rounded-lg input-focus text-sm" placeholder="例如: 100.00">
@@ -136,7 +137,7 @@
                         </div>
                         <div>
                             <label for="transfer-amount" class="block text-sm font-medium text-gray-700 mb-1">
-                                出让/溢价 (选填)
+                                出让/溢价
                                 <span class="inline-flex items-center ml-2">
                                     <label class="flex items-center text-sm cursor-pointer mr-3">
                                         <input type="radio" name="transfer-mode" value="transfer" class="mr-1" checked> 出让
@@ -148,7 +149,7 @@
                             </label>
                             <div class="price-currency-group">
                                 <input type="number" id="transfer-amount" min="0" step="0.01"
-                                       class="no-spin price-input input-sm border border-gray-300 rounded-lg input-focus text-sm" placeholder="请输入金额">
+                                       class="no-spin price-input input-sm border border-gray-300 rounded-lg input-focus text-sm" placeholder="请输入出让价格">
                                 <select id="target-currency" class="currency-select border border-gray-300 rounded-lg text-gray-600 input-focus">
                                     <option value="CNY">人民币 CNY</option>
                                     <option value="USD">美元 USD</option>
@@ -164,7 +165,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">续费周期</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">续费周期 <span class="text-red-500">*</span></label>
                         <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                             <label class="flex items-center justify-center p-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition text-sm">
                                 <input type="radio" name="billing-cycle" value="monthly" class="mr-1"> <span>月付</span>
@@ -189,7 +190,7 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div>
-                            <label for="purchase-date" class="block text-sm font-medium text-gray-700 mb-1">购买日期</label>
+                            <label for="purchase-date" class="block text-sm font-medium text-gray-700 mb-1">购买日期 <span class="text-red-500">*</span></label>
                             <input type="date" id="purchase-date" required
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg input-focus text-sm date-no-input">
                         </div>
