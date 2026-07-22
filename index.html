@@ -548,6 +548,23 @@
             return `${y}/${m}/${d} ${h}:${i}:${s}`;
         }
 
+        // 格式化中文时间
+        function formatChineseTime(timeString) {
+            if (!timeString || timeString === '--') return '--';
+            try {
+                const date = new Date(timeString);
+                const y = date.getFullYear();
+                const m = date.getMonth() + 1;
+                const d = date.getDate();
+                const h = String(date.getHours()).padStart(2, '0');
+                const min = String(date.getMinutes()).padStart(2, '0');
+                const tz = date.getTimezoneOffset() === 0 ? 'UTC' : `UTC${date.getTimezoneOffset() > 0 ? '-' : '+'}${Math.abs(date.getTimezoneOffset()/60)}`;
+                return `${y}/${m}/${d} ${h}:${min} ${tz}`;
+            } catch (e) {
+                return timeString;
+            }
+        }
+
         // 获取汇率
         async function fetchExchangeRates() {
             const statusEl = document.getElementById('rate-status');
@@ -700,7 +717,7 @@
             document.getElementById('rate-from').textContent = oriCur;
             document.getElementById('rate-to').textContent = tarCur;
             document.getElementById('rate-value').textContent = rate.toFixed(4);
-            document.getElementById('rate-update-time').textContent = rateUpdateTime;
+            document.getElementById('rate-update-time').textContent = formatChineseTime(rateUpdateTime);
             document.getElementById('calculate-time').textContent = formatDateTime(new Date());
 
             // 显示结果区域
