@@ -307,7 +307,7 @@
         let exchangeRates = {};
         let rateUpdateTime = '';
         let hasCalculated = false;
-        const API_CONFIG = { key: 'fae144f2da690f6bca1c6fc6424bb046', id: '10005705', baseUrl: 'https://cn.apihz.cn/api/jinrong/huilv.php' };
+        const API_BASE_URL = 'https://huilv.007677.xyz/';
         const BING_BG = {
             pc: 'https://bing.img.run/rand_uhd.php',
             mobile: 'https://bing.img.run/rand_m.php'
@@ -550,33 +550,27 @@
 
         // 获取汇率
         async function fetchExchangeRates() {
-            const from = document.getElementById('original-currency').value;
-            const to = document.getElementById('target-currency').value;
+            const statusEl = document.getElementById('rate-status');
             try {
-                const res = await fetch(`${API_CONFIG.baseUrl}?id=${API_CONFIG.id}&key=${API_CONFIG.key}&from=${from}&to=${to}&money=1`);
+                const res = await fetch(API_BASE_URL);
                 const data = await res.json();
-                if (data.code !== 200) throw new Error('API error');
-                exchangeRates[from] = exchangeRates[from] || {};
-                exchangeRates[from][to] = parseFloat(data.rate);
-                rateUpdateTime = data.uptime || new Date().toLocaleString();
-                document.getElementById('rate-status').innerHTML = `<i class="fas fa-check-circle mr-2 text-green-500"></i>实时汇率已更新 (1 ${from} = ${data.rate} ${to})`;
+                const usdRates = data.rates;
+                exchangeRates = { USD: usdRates };
+                for (const cur in usdRates) {
+                    if (cur === 'USD') continue;
+                    exchangeRates[cur] = {};
+                    for (const target in usdRates) {
+                        exchangeRates[cur][target] = usdRates[target] / usdRates[cur];
+                    }
+                }
+                rateUpdateTime = data.updated_at;
+                const from = document.getElementById('original-currency').value;
+                const to = document.getElementById('target-currency').value;
+                const rate = exchangeRates[from]?.[to];
+                statusEl.innerHTML = `<i class="fas fa-check-circle mr-2 text-green-500"></i>实时汇率已更新 (1 ${from} = ${rate?.toFixed(4)} ${to})`;
             } catch (e) {
                 console.error(e);
-                // 默认汇率 - 只设置当前请求的货币对
-                const defaultRates = {
-                    USD: { USD:1, CNY:7.2, EUR:0.92, GBP:0.78, JPY:148, HKD:7.8, SGD:1.34, KRW:1320 },
-                    CNY: { USD:0.139, CNY:1, EUR:0.128, GBP:0.108, JPY:20.56, HKD:1.08, SGD:0.186, KRW:183.33 },
-                    EUR: { USD:1.087, CNY:7.83, EUR:1, GBP:0.848, JPY:160.87, HKD:8.48, SGD:1.457, KRW:1434.78 },
-                    GBP: { USD:1.282, CNY:9.23, EUR:1.179, GBP:1, JPY:189.74, HKD:9.97, SGD:1.718, KRW:1692.31 },
-                    JPY: { USD:0.00676, CNY:0.0486, EUR:0.00622, GBP:0.00527, JPY:1, HKD:0.0527, SGD:0.00905, KRW:8.92 },
-                    HKD: { USD:0.128, CNY:0.926, EUR:0.118, GBP:0.100, HKD:1, JPY:18.98, SGD:0.172, KRW:169.23 },
-                    SGD: { USD:0.746, CNY:5.38, EUR:0.686, GBP:0.582, JPY:110.5, HKD:5.81, SGD:1, KRW:985.07 },
-                    KRW: { USD:0.000758, CNY:0.00546, EUR:0.000697, GBP:0.00591, JPY:0.112, HKD:0.00591, SGD:0.00102, KRW:1 }
-                };
-                exchangeRates[from] = exchangeRates[from] || {};
-                exchangeRates[from][to] = defaultRates[from]?.[to] || 1;
-                rateUpdateTime = '默认值';
-                document.getElementById('rate-status').innerHTML = '<i class="fas fa-exclamation-circle mr-2 text-red-500"></i>获取汇率失败，使用默认汇率';
+                statusEl.innerHTML = '<i class="fas fa-exclamation-circle mr-2 text-red-500"></i>获取汇率失败，请刷新重试';
             }
         }
 
